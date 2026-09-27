@@ -1,0 +1,195 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-heat: var(--heat);
+  --color-up: var(--up);
+  --color-down: var(--down);
+  --color-gold: var(--gold);
+  --color-silver: var(--silver);
+  --color-bronze: var(--bronze);
+  --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+
+:root {
+  --radius: 0.75rem;
+  --background: #FBFAF6;
+  --foreground: #0B1410;
+  --card: #FFFFFF;
+  --card-foreground: #0B1410;
+  --popover: #FFFFFF;
+  --popover-foreground: #0B1410;
+  --primary: #0B5D2E;
+  --primary-foreground: #F7FBF8;
+  --secondary: #F1EFE7;
+  --secondary-foreground: #0B1410;
+  --muted: #F1EFE7;
+  --muted-foreground: #5C6B61;
+  --accent: #FF6B1A;
+  --accent-foreground: #FFFFFF;
+  --destructive: #D92D20;
+  --border: #E6E3D9;
+  --input: #E6E3D9;
+  --ring: #0B5D2E;
+  --heat: #FF6B1A;
+  --up: #0FA958;
+  --down: #D92D20;
+  --gold: #C79A2E;
+  --silver: #8A94A0;
+  --bronze: #A3653B;
+  --chart-1: #0B5D2E;
+  --chart-2: #FF6B1A;
+  --chart-3: #0FA958;
+  --chart-4: #C79A2E;
+  --chart-5: #5C6B61;
+  --sidebar: #FFFFFF;
+  --sidebar-foreground: #0B1410;
+  --sidebar-primary: #0B5D2E;
+  --sidebar-primary-foreground: #F7FBF8;
+  --sidebar-accent: #F1EFE7;
+  --sidebar-accent-foreground: #0B1410;
+  --sidebar-border: #E6E3D9;
+  --sidebar-ring: #0B5D2E;
+}
+
+.dark {
+  --background: #07100B;
+  --foreground: #F2F7F3;
+  --card: #0D1A12;
+  --card-foreground: #F2F7F3;
+  --popover: #0D1A12;
+  --popover-foreground: #F2F7F3;
+  --primary: #17C964;
+  --primary-foreground: #04150A;
+  --secondary: #142218;
+  --secondary-foreground: #F2F7F3;
+  --muted: #142218;
+  --muted-foreground: #8FA396;
+  --accent: #FF7A2F;
+  --accent-foreground: #1A0A02;
+  --destructive: #FF5A4E;
+  --border: #1B2C21;
+  --input: #1B2C21;
+  --ring: #17C964;
+  --heat: #FF7A2F;
+  --up: #2FD97A;
+  --down: #FF5A4E;
+  --gold: #C79A2E;
+  --silver: #8A94A0;
+  --bronze: #A3653B;
+  --chart-1: #17C964;
+  --chart-2: #FF7A2F;
+  --chart-3: #2FD97A;
+  --chart-4: #C79A2E;
+  --chart-5: #8FA396;
+  --sidebar: #0D1A12;
+  --sidebar-foreground: #F2F7F3;
+  --sidebar-primary: #17C964;
+  --sidebar-primary-foreground: #04150A;
+  --sidebar-accent: #142218;
+  --sidebar-accent-foreground: #F2F7F3;
+  --sidebar-border: #1B2C21;
+  --sidebar-ring: #17C964;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01" on;
+  }
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+  }
+}
+
+@layer utilities {
+  /* Oversized tabular rank numerals — the scoreboard look. */
+  .rank-numeral {
+    font-family: var(--font-display);
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    letter-spacing: -0.04em;
+  }
+  .tabular {
+    font-variant-numeral: tabular-nums;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* One orchestrated reveal on load, then only meaningful motion. */
+@keyframes nr-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.nr-rise {
+  animation: nr-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes nr-pulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+.nr-pulse {
+  animation: nr-pulse 0.5s ease-out 1;
+}
+@keyframes nr-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.nr-marquee {
+  animation: nr-marquee 38s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nr-rise, .nr-pulse, .nr-marquee { animation: none; }
+}
