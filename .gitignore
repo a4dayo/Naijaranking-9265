@@ -72,6 +72,11 @@ scripts/
 !packages/mobile/scripts/
 packages/mobile/scripts/*
 !packages/mobile/scripts/generate-ios-certs.py
+# Deploy and data-move tools (no secrets inside; read everything from env)
+!packages/web/scripts/
+packages/web/scripts/*
+!packages/web/scripts/db-push.ts
+!packages/web/scripts/copy-data.ts
 
 # Wrangler local secrets and state
 .dev.vars
