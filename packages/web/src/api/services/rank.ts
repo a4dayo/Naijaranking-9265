@@ -12,6 +12,8 @@ export interface RankedEntry {
   imageUrl: string | null;
   votesEffective: number;
   votesRaw: number;
+  /** Unverified votes waiting on verification — shown, never ranked. */
+  votesPending: number;
   delta24h: number;
   claimed: boolean;
   isSponsored: boolean;
@@ -60,6 +62,7 @@ export async function rankedEntries(boardId: string): Promise<RankedEntry[]> {
     imageUrl: row.imageUrl,
     votesEffective: round2(row.votesEffective),
     votesRaw: row.votesRaw,
+    votesPending: row.votesPending ?? 0,
     delta24h: row.delta24h,
     claimed: row.claimed,
     isSponsored: row.isSponsored,

@@ -45,9 +45,11 @@ Sponsored slots get a dashed amber outline + explicit "Sponsored" label — neve
 
 ## Key Flows
 
-1. **Vote**: tap Vote → unverified vote counted at 0.25 immediately (no login wall) → inline OTP modal
-   "make your vote count" → verify → same vote reweighted to 1.0 → row shows "✓ Voted" → list reorders →
-   share card prompt. Return visit within 180 days: one tap, no OTP.
+1. **Vote**: tap Vote → the vote is saved immediately as *pending* (no login wall) but does not move the
+   ranking → inline OTP modal "make your vote count" → verify → the same vote starts counting → row shows
+   "✓ Voted" → list reorders → share card prompt. Return visit within 180 days: one tap, no OTP. Boards
+   show pending votes separately ("+40 pending"); only verified votes decide rank. Weights live in
+   `src/api/services/weights.ts` (phone will outrank email once SMS OTP is live).
 2. **Move vote**: voting another entry on the same board moves it atomically → toast "Moved your vote from X to Y."
 3. **Freeze**: operator freezes a board → `/b/:slug/results` becomes the permanent artifact.
 

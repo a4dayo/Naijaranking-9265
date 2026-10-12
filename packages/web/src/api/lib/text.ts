@@ -39,10 +39,44 @@ export function normaliseNgPhone(raw: string): string | null {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i;
 
+/** Providers that ignore dots in the local part. */
+const DOT_BLIND_DOMAINS = new Set(["gmail.com", "googlemail.com"]);
+/** Providers that deliver `name+anything@` to `name@`. */
+const PLUS_ADDRESSING_DOMAINS = new Set([
+  "gmail.com",
+  "googlemail.com",
+  "outlook.com",
+  "hotmail.com",
+  "live.com",
+  "msn.com",
+  "icloud.com",
+  "me.com",
+  "mac.com",
+  "proton.me",
+  "protonmail.com",
+  "pm.me",
+  "fastmail.com",
+  "zoho.com",
+]);
+const DOMAIN_ALIASES: Record<string, string> = { "googlemail.com": "gmail.com" };
+
+/**
+ * Lower-cases and canonicalises an email so one inbox is one identity:
+ * `Ada.Obi+naijarank@GoogleMail.com` → `adaobi@gmail.com`. The canonical form
+ * still delivers to the same inbox on these providers, so it is what we store,
+ * rate-limit and send to.
+ */
 export function normaliseEmail(raw: string): string | null {
   const email = raw.trim().toLowerCase();
   if (!EMAIL_RE.test(email)) return null;
-  return email;
+  const at = email.lastIndexOf("@");
+  let local = email.slice(0, at);
+  let domain = email.slice(at + 1);
+  if (PLUS_ADDRESSING_DOMAINS.has(domain)) local = local.split("+")[0]!;
+  if (DOT_BLIND_DOMAINS.has(domain)) local = local.replaceAll(".", "");
+  domain = DOMAIN_ALIASES[domain] ?? domain;
+  if (!local) return null;
+  return `${local}@${domain}`;
 }
 
 /** Light profanity/impersonation screen for nominations — flags, never auto-rejects silently. */

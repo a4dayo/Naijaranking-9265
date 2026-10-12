@@ -7,7 +7,7 @@ import { trackEvent } from "../queries/boards";
 interface Props {
   open: boolean;
   onClose: () => void;
-  /** Shown above the form — e.g. "Your vote for Asake counts 0.25 right now." */
+  /** Shown above the form — e.g. "Your vote for Asake is saved but pending." */
   reason?: string;
   onVerified?: (upgradedBoards: number) => void;
 }
@@ -79,14 +79,15 @@ export function OtpModal({ open, onClose, reason, onVerified }: Props) {
   const submit = async () => {
     try {
       const result = await verify.mutateAsync({ destination: destination.trim(), code: code.trim() });
-      trackEvent("otp_verified", { upgradedBoards: result.upgradedBoards });
+      const upgraded = result.upgradedBoards.length;
+      trackEvent("otp_verified", { upgradedBoards: upgraded });
       toast(
-        result.upgradedBoards > 0
-          ? `Verified. Your vote now counts full weight on ${result.upgradedBoards} board${result.upgradedBoards === 1 ? "" : "s"}.`
-          : "Verified. Your votes now count at full weight.",
+        upgraded > 0
+          ? `Verified. Your vote now counts on ${upgraded} board${upgraded === 1 ? "" : "s"}.`
+          : "Verified. Your votes now count.",
         "success",
       );
-      onVerified?.(result.upgradedBoards);
+      onVerified?.(upgraded);
       onClose();
     } catch (error) {
       toast(errorMessage(error, "That code did not match. Check it, or resend."), "error");
@@ -113,11 +114,11 @@ export function OtpModal({ open, onClose, reason, onVerified }: Props) {
           </svg>
         </button>
 
-        <h2 className="pr-8 font-display text-xl font-extrabold">Make your vote count 4×</h2>
+        <h2 className="pr-8 font-display text-xl font-extrabold">Make your vote count</h2>
         <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-          {reason ?? "Your vote is already counted."} Verifying your email lifts it from 0.25 to a
-          full 1.0 — four times the weight. One check covers every board, and there is no password
-          and no account to create.
+          {reason ?? "Your vote is saved."} It only moves the ranking once you verify your email —
+          that is how we keep it one person, one vote. One check covers every board, and there is no
+          password and no account to create.
         </p>
 
         {stage === "destination" ? (
@@ -198,7 +199,7 @@ export function OtpModal({ open, onClose, reason, onVerified }: Props) {
               className="h-11 w-full text-[15px]"
               disabled={verify.isPending || code.length < 4}
             >
-              {verify.isPending ? "Checking…" : "Unlock full weight"}
+              {verify.isPending ? "Checking…" : "Verify and count my vote"}
             </Button>
             <div className="flex items-center justify-between text-[12px]">
               <button

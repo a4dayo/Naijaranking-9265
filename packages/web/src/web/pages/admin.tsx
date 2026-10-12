@@ -1319,7 +1319,7 @@ function Audit() {
                 <td className="py-2 pr-3 font-mono font-semibold">{row.action}</td>
                 <td className="py-2 pr-3 text-muted-foreground">
                   {row.actorKind ?? "system"}
-                  {row.actorId ? ` · ${row.actorId.slice(0, 8)}` : ""}
+                  {row.actor ? ` · ${row.actor.slice(0, 8)}` : ""}
                 </td>
                 <td className="py-2 pr-3 text-muted-foreground">
                   {row.targetType ?? "—"}

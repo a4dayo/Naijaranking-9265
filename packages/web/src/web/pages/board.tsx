@@ -32,13 +32,24 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Stat({
+  label,
+  value,
+  hint,
+  sub,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  sub?: string;
+}) {
   return (
     <div className="min-w-0">
       <p className="text-[10.5px] font-bold tracking-wider text-muted-foreground uppercase">{label}</p>
       <p className="tabular mt-0.5 truncate font-display text-[17px] font-extrabold" title={hint}>
         {value}
       </p>
+      {sub ? <p className="tabular truncate text-[11.5px] text-muted-foreground">{sub}</p> : null}
     </div>
   );
 }
@@ -154,14 +165,14 @@ export default function BoardPage() {
         toast(
           result.verified
             ? `Counted for ${entry.name} — now #${result.newRank}.`
-            : `Counted at 0.25 for ${entry.name}. Verify to make it 1.0.`,
+            : `Saved for ${entry.name}. Verify your email to make it count.`,
           "success",
         );
       }
 
-      // The prompt only ever appears after the vote is already counted.
+      // The prompt only ever appears after the vote is already saved.
       if (!result.verified && result.action !== "toggled_off") {
-        setOtpReason(`Your vote for ${entry.name} counts 0.25 right now.`);
+        setOtpReason(`Your vote for ${entry.name} is saved but pending.`);
         setOtpOpen(true);
       }
     } catch (error) {
@@ -239,8 +250,12 @@ export default function BoardPage() {
         ) : null}
 
         <div className="mt-5 grid grid-cols-2 gap-4 rounded-xl border border-border bg-card p-4 sm:grid-cols-4">
-          <Stat label="Total votes" value={fmtVotes(board.totalVotesEffective)} hint={`${board.totalVotesRaw} raw taps`} />
-          <Stat label="Voters" value={fmtVotes(board.voterCount)} />
+          <Stat
+            label="Verified votes"
+            value={fmtVotes(board.totalVotesEffective)}
+            sub={board.totalVotesPending ? `+${fmtVotes(board.totalVotesPending)} pending` : undefined}
+          />
+          <Stat label="Verified voters" value={fmtVotes(board.voterCount)} />
           <Stat label="Leader" value={leader?.name ?? "—"} hint={leader?.name} />
           <Stat
             label="Updated"
@@ -284,7 +299,7 @@ export default function BoardPage() {
               {data.me ? (
                 <span className="text-[11.5px] font-medium text-muted-foreground">
                   {data.myVote
-                    ? `Your vote: ${entries.find((e) => e.id === data.myVote?.entryId)?.name ?? "—"} (${data.myVote.weight})`
+                    ? `Your vote: ${entries.find((e) => e.id === data.myVote?.entryId)?.name ?? "—"}${data.myVote.weight > 0 ? "" : " (pending)"}`
                     : "You have not voted here yet"}
                 </span>
               ) : null}
@@ -317,8 +332,8 @@ export default function BoardPage() {
             {!data.me?.verified ? (
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/25 bg-primary/5 p-4">
                 <p className="max-w-sm text-[13px] leading-relaxed">
-                  <span className="font-bold">Unverified votes count 0.25.</span> Verify once with
-                  your email and every vote you have cast jumps to full weight.
+                  <span className="font-bold">Unverified votes are pending.</span> Verify once with
+                  your email and every vote you have cast starts counting.
                 </p>
                 <Button
                   size="sm"

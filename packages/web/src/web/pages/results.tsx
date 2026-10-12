@@ -152,9 +152,9 @@ export default function ResultsPage() {
           <h2 className="font-display text-base font-bold">How this was counted</h2>
           <dl className="mt-3 grid grid-cols-2 gap-3 text-[13px] sm:grid-cols-4">
             {[
-              ["Voters", fmtVotes(stats.voters)],
               ["Verified voters", fmtVotes(stats.verifiedVoters)],
-              ["Total weight", fmtVotes(board.totalVotesEffective)],
+              ["Never verified", fmtVotes(stats.pendingVoters)],
+              ["Votes counted", fmtVotes(board.totalVotesEffective)],
               ["Votes voided", fmtVotes(stats.votesVoided)],
             ].map(([label, value]) => (
               <div key={label}>
@@ -166,8 +166,9 @@ export default function ResultsPage() {
             ))}
           </dl>
           <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
-            Voting ran {shortDate(stats.votedFrom)} – {shortDate(stats.votedTo)}. A verified vote
-            carries weight 1.0, an unverified one 0.25. {stats.votesVoided} vote
+            Voting ran {shortDate(stats.votedFrom)} – {shortDate(stats.votedTo)}. Only verified votes
+            are counted; {fmtVotes(stats.pendingVoters)} vote{stats.pendingVoters === 1 ? " was" : "s were"} cast
+            but never verified and do not affect the result. {stats.votesVoided} vote
             {stats.votesVoided === 1 ? "" : "s"} were voided after human review of automated fraud
             flags; {integrity.openFlags} flag{integrity.openFlags === 1 ? "" : "s"} remain open.{" "}
             <Link href="/legal/how-voting-works" className="underline">

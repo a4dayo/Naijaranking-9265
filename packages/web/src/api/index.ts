@@ -1,6 +1,8 @@
 import type { RouterClient } from "@orpc/server";
 import { eq } from "drizzle-orm";
+import { Hono } from "hono";
 import { createApp } from "./__core/app";
+import { isAllowedOrigin } from "./lib/origin";
 import { db } from "./database";
 import * as schema from "./database/schema";
 import { admin } from "./routes/admin";
@@ -23,7 +25,7 @@ export type AppRouter = typeof router;
 /** Typed client for the router — used by the web and mobile api clients. */
 export type AppRouterClient = RouterClient<AppRouter>;
 
-const app = createApp(router);
+const api = createApp(router);
 
 /**
  * Crawler-friendly share target. The SPA cannot serve per-board OG tags itself
@@ -31,7 +33,7 @@ const app = createApp(router);
  * the board's own title, description and image, which then forwards a human
  * straight to the board. This is what makes a WhatsApp paste render properly.
  */
-app.get("/api/share/:slug", async (c) => {
+api.get("/api/share/:slug", async (c) => {
   const slug = c.req.param("slug");
   const [board] = await db
     .select()
@@ -45,7 +47,7 @@ app.get("/api/share/:slug", async (c) => {
   const leader = entries[0];
   const title = `${board.title} — NaijaRank`;
   const description = leader
-    ? `${leader.name} is No.1 with ${leader.votesEffective} votes, out of ${board.totalVotesRaw} cast so far. Think that's wrong? One tap changes it.`
+    ? `${leader.name} is No.1 with ${leader.votesEffective} votes, out of ${board.totalVotesRaw} verified so far. Think that's wrong? One tap changes it.`
     : (board.description ?? "Nobody has voted yet. Cast the first one and set the order.");
   const image = leader?.imageUrl ?? "/og-image.png";
   const target = `/b/${board.slug}`;
@@ -73,7 +75,7 @@ app.get("/api/share/:slug", async (c) => {
 });
 
 /** Plain-text sitemap of every published board. */
-app.get("/api/sitemap.txt", async (c) => {
+api.get("/api/sitemap.txt", async (c) => {
   const rows = await db
     .select({ slug: schema.boards.slug, status: schema.boards.status })
     .from(schema.boards);
@@ -99,6 +101,19 @@ function escapeHtml(value: string) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
 }
+
+/**
+ * Outer app: refuses RPC calls from foreign origins before the template's
+ * CORS layer (which reflects every origin) can answer them. See lib/origin.ts.
+ */
+const app = new Hono();
+app.use("/api/rpc/*", async (c, next) => {
+  if (!isAllowedOrigin(c.req.header("origin") ?? null, c.req.raw.headers)) {
+    return c.json({ error: "Cross-site requests are not allowed." }, 403);
+  }
+  await next();
+});
+app.route("/", api);
 
 // Reconciliation, integrity scanning and rank snapshots run in-process.
 startJobs();

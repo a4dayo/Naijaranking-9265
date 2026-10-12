@@ -62,6 +62,9 @@ export const boards = sqliteTable(
     frozenAt: integer("frozen_at", { mode: "timestamp_ms" }),
     totalVotesEffective: real("total_votes_effective").notNull().default(0),
     totalVotesRaw: integer("total_votes_raw").notNull().default(0),
+    // Nullable on purpose: adding a NOT NULL column makes drizzle-kit push
+    // empty the table first. SQLite still fills existing rows with the default.
+    totalVotesPending: integer("total_votes_pending").default(0),
     lastVoteAt: integer("last_vote_at", { mode: "timestamp_ms" }),
     createdAt: createdAt(),
   },
@@ -80,7 +83,11 @@ export const entries = sqliteTable(
     subtitle: text("subtitle"),
     imageUrl: text("image_url"),
     votesEffective: real("votes_effective").notNull().default(0),
+    // Verified votes only. Unverified votes are held as pending (weight 0) and
+    // never affect rank until the voter verifies.
     votesRaw: integer("votes_raw").notNull().default(0),
+    // Nullable on purpose — see boards.totalVotesPending.
+    votesPending: integer("votes_pending").default(0),
     delta24h: integer("delta_24h").notNull().default(0),
     claimed: integer("claimed", { mode: "boolean" }).notNull().default(false),
     claimedBy: text("claimed_by"),
@@ -107,10 +114,17 @@ export const voters = sqliteTable(
     // E.164 phone when SMS OTP is wired; email OTP identity for this build
     phoneE164: text("phone_e164").unique(),
     email: text("email").unique(),
+    // Keyed one-way hash of the verified identity (HMAC of the normalised email or
+    // phone). Kept after erasure so the same person cannot erase and vote again;
+    // re-verifying resolves back to this same row.
+    identityHash: text("identity_hash").unique(),
     verifiedAt: integer("verified_at", { mode: "timestamp_ms" }),
     deviceFp: text("device_fp"),
     firstSeenIp: text("first_seen_ip"),
     firstSeenAsn: text("first_seen_asn"),
+    // Always set explicitly by the code (see services/weights.ts). The column
+    // default is left at its original value: changing a default makes
+    // drizzle-kit push rebuild every index on the live database.
     weight: real("weight").notNull().default(0.25),
     // set when the voter asks for erasure (NDPA 2023 deletion path)
     erasedAt: integer("erased_at", { mode: "timestamp_ms" }),

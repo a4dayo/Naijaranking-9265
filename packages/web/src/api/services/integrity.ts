@@ -36,7 +36,7 @@ export async function scanIntegrity() {
       and(
         inArray(schema.voteEvents.boardId, boardIds),
         gte(schema.voteEvents.createdAt, new Date(now - DAY)),
-        inArray(schema.voteEvents.kind, ["cast", "moved_in"]),
+        inArray(schema.voteEvents.kind, ["cast", "moved_in", "verified"]),
       ),
     );
 

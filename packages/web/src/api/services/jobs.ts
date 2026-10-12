@@ -2,6 +2,7 @@ import { inArray } from "drizzle-orm";
 import { db } from "../database";
 import * as schema from "../database/schema";
 import { purgeOldPersonalData, scanIntegrity } from "./integrity";
+import { convertLegacyAnonymousVotes } from "./migrations";
 import { snapshotRanks } from "./rank";
 import { reconcileBoard } from "./vote";
 
@@ -48,7 +49,8 @@ const snapshotAll = async () => {
 };
 
 export function startJobs() {
-  if (started) return;
+  // Test runs drive these jobs explicitly; background intervals would race them.
+  if (started || process.env.NODE_ENV === "test") return;
   started = true;
 
   // The API is a long-lived process, so these intervals are meant to hold it
@@ -57,6 +59,13 @@ export function startJobs() {
   setInterval(safely("integrity-scan", scanIntegrity), SCAN_MS);
   setInterval(safely("rank-snapshot", snapshotAll), SNAPSHOT_MS);
   setInterval(safely("ip-purge", purgeOldPersonalData), PURGE_MS);
+
+  // Unverified votes from before pending votes existed still carry 0.25; turn
+  // them into pending votes before anything else reads the counters.
+  safely("convert-legacy-anonymous-votes", async () => {
+    const result = await convertLegacyAnonymousVotes();
+    if (result.converted) console.log(`[jobs] converted ${result.converted} legacy anonymous votes to pending`);
+  })();
 
   // An immediate snapshot means a freshly booted process has a baseline to
   // compute deltas against rather than showing zeroes for an hour.

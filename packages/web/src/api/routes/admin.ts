@@ -165,7 +165,7 @@ export const admin = {
     const [votes24] = await db
       .select({
         count: sql<number>`count(*)`,
-        verified: sql<number>`sum(case when ${schema.votes.weight} >= 1 then 1 else 0 end)`,
+        verified: sql<number>`sum(case when ${schema.votes.weight} > 0 then 1 else 0 end)`,
       })
       .from(schema.votes)
       .where(and(eq(schema.votes.status, "counted"), gte(schema.votes.createdAt, since24)));

@@ -58,27 +58,33 @@ export function useCastVote(slug: string) {
       const previous = queryClient.getQueryData<BoardDetail>(key);
       if (!previous) return { previous };
 
-      const weight = previous.me?.verified ? 1 : 0.25;
+      // Unverified votes are pending: they bump the pending count, never the rank.
+      const weight = previous.me?.verified ? Math.max(previous.me.weight, 1) : 0;
       const wasOn = previous.myVote?.entryId === entryId;
       const previousEntryId = previous.myVote?.entryId ?? null;
       const previousWeight = previous.myVote?.weight ?? weight;
 
+      const apply = (
+        entry: BoardDetail["entries"][number],
+        voteWeight: number,
+        direction: 1 | -1,
+      ) =>
+        voteWeight > 0
+          ? {
+              ...entry,
+              votesEffective: Math.max(
+                0,
+                Math.round((entry.votesEffective + direction * voteWeight) * 100) / 100,
+              ),
+              votesRaw: Math.max(0, entry.votesRaw + direction),
+            }
+          : { ...entry, votesPending: Math.max(0, entry.votesPending + direction) };
+
       const entries = previous.entries.map((entry) => {
-        let effective = entry.votesEffective;
-        let raw = entry.votesRaw;
-        if (entry.id === previousEntryId) {
-          effective -= previousWeight;
-          raw -= 1;
-        }
-        if (!wasOn && entry.id === entryId) {
-          effective += weight;
-          raw += 1;
-        }
-        return {
-          ...entry,
-          votesEffective: Math.max(0, Math.round(effective * 100) / 100),
-          votesRaw: Math.max(0, raw),
-        };
+        let next = entry;
+        if (entry.id === previousEntryId) next = apply(next, previousWeight, -1);
+        if (!wasOn && entry.id === entryId) next = apply(next, weight, 1);
+        return next;
       });
 
       entries.sort((a, b) => b.votesEffective - a.votesEffective || b.votesRaw - a.votesRaw);

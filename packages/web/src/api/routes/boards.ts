@@ -1,5 +1,5 @@
 import { ORPCError } from "@orpc/server";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { base } from "../__core/app";
 import { db } from "../database";
@@ -29,6 +29,7 @@ const publicBoardColumns = {
   sponsorId: schema.boards.sponsorId,
   totalVotesEffective: schema.boards.totalVotesEffective,
   totalVotesRaw: schema.boards.totalVotesRaw,
+  totalVotesPending: schema.boards.totalVotesPending,
   lastVoteAt: schema.boards.lastVoteAt,
   createdAt: schema.boards.createdAt,
 };
@@ -82,7 +83,13 @@ export const boards = {
       ? await db
           .select({ boardId: schema.votes.boardId, voters: sql<number>`count(*)` })
           .from(schema.votes)
-          .where(and(inArray(schema.votes.boardId, ids), eq(schema.votes.status, "counted")))
+          .where(
+            and(
+              inArray(schema.votes.boardId, ids),
+              eq(schema.votes.status, "counted"),
+              gt(schema.votes.weight, 0),
+            ),
+          )
           .groupBy(schema.votes.boardId)
       : [];
     const voters = new Map(voterCounts.map((v) => [v.boardId, Number(v.voters)]));
@@ -127,10 +134,17 @@ export const boards = {
         myVote = row ?? null;
       }
 
+      // Voters = verified voters. Pending (unverified) votes are reported separately.
       const [voterCount] = await db
         .select({ count: sql<number>`count(*)` })
         .from(schema.votes)
-        .where(and(eq(schema.votes.boardId, board.id), eq(schema.votes.status, "counted")));
+        .where(
+          and(
+            eq(schema.votes.boardId, board.id),
+            eq(schema.votes.status, "counted"),
+            gt(schema.votes.weight, 0),
+          ),
+        );
 
       const [sponsor] = board.sponsorId
         ? await db
@@ -173,8 +187,8 @@ export const boards = {
 
     const [stats] = await db
       .select({
-        voters: sql<number>`count(*)`,
-        verified: sql<number>`sum(case when ${schema.votes.weight} >= 1 then 1 else 0 end)`,
+        verified: sql<number>`sum(case when ${schema.votes.weight} > 0 then 1 else 0 end)`,
+        pending: sql<number>`sum(case when ${schema.votes.weight} > 0 then 0 else 1 end)`,
         first: sql<number>`min(${schema.votes.createdAt})`,
         last: sql<number>`max(${schema.votes.createdAt})`,
       })
@@ -191,8 +205,9 @@ export const boards = {
       entries,
       integrity: note,
       stats: {
-        voters: Number(stats?.voters ?? 0),
+        voters: Number(stats?.verified ?? 0),
         verifiedVoters: Number(stats?.verified ?? 0),
+        pendingVoters: Number(stats?.pending ?? 0),
         votedFrom: stats?.first ? new Date(Number(stats.first)) : null,
         votedTo: stats?.last ? new Date(Number(stats.last)) : null,
         votesVoided: Number(voided?.count ?? 0),
