@@ -112,7 +112,7 @@ function BoardCard({ board }: { board: Board }) {
 const TRUST = [
   {
     title: "One vote per person",
-    body: "Verified by email and weighted 1.0. Unverified votes still count, at 0.25.",
+    body: "Only verified votes move the ranking. Unverified votes are shown as pending until the voter verifies.",
   },
   {
     title: "Live, not editorial",

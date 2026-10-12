@@ -45,8 +45,8 @@ export const identity = {
     }),
 
   /**
-   * Verifies the code, links the identity to this voter, and upgrades every vote
-   * they already cast from 0.25 to full weight.
+   * Verifies the code, links the identity to this voter, and turns every pending
+   * vote they already cast into a counted one.
    */
   verifyCode: base
     .input(z.object({ destination: z.string().min(3).max(160), code: z.string().min(4).max(8) }))
@@ -73,8 +73,11 @@ export const identity = {
   }),
 
   /**
-   * NDPA 2023 erasure. The voter's identity and device trail go; their votes stay
-   * counted but are detached from any personal data, because retroactively
+   * NDPA 2023 erasure. The voter's email/phone and device trail go; their votes stay
+   * counted but are detached from any personal data. Only the keyed one-way
+   * identity hash is kept, so verifying the same identity again restores this
+   * voter (and their existing votes) instead of creating a second one. Votes are
+   * not voided here, because retroactively
    * changing a public result would be its own integrity problem.
    */
   eraseMe: base.handler(async ({ context }) => {

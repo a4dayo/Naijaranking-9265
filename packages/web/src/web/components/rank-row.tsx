@@ -123,6 +123,14 @@ export function RankRow({
               {fmtVotes(entry.votesEffective)}
             </span>
             <span>{entry.votesEffective === 1 ? "vote" : "votes"}</span>
+            {entry.votesPending > 0 ? (
+              <span
+                className="tabular text-[11.5px]"
+                title="Unverified votes. They count once the voter verifies."
+              >
+                · +{fmtVotes(entry.votesPending)} pending
+              </span>
+            ) : null}
             {reactionTotal > 0 ? (
               <span className="hidden items-center gap-1 sm:inline-flex">
                 ·

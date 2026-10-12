@@ -67,6 +67,15 @@ export function verifyPassword(password: string, stored: string) {
   return safeEqual(scryptSync(password, salt, 64).toString("hex"), derived);
 }
 
+/**
+ * One-way, keyed hash of a verified identity (normalised email or E.164 phone).
+ * Survives erasure so the same identity resolves to the same voter row and can
+ * never be used to vote twice. Depends on SESSION_SECRET staying stable.
+ */
+export function identityHash(destination: string) {
+  return createHmac("sha256", SECRET).update(`identity:${destination}`).digest("hex");
+}
+
 /** Stable pseudonymous hash for IPs kept past the 90-day raw-retention window. */
 export function pseudonymiseIp(ip: string) {
   return createHmac("sha256", SECRET).update(`ip:${ip}`).digest("hex").slice(0, 32);

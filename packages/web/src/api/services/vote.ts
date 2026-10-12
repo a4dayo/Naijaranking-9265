@@ -8,6 +8,7 @@ import { withBusyRetry, withLock } from "../lib/mutex";
 import { isUniqueViolation } from "../lib/errors";
 import { audit, track } from "./audit";
 import { ensureVoter } from "./session";
+import { EMAIL_WEIGHT, PENDING_WEIGHT, isPendingWeight } from "./weights";
 
 export type VoteAction = "cast" | "moved" | "toggled_off" | "replayed";
 
@@ -17,6 +18,9 @@ export interface VoteResult {
   newRank: number | null;
   votesEffective: number;
   votesRaw: number;
+  votesPending: number;
+  /** True when this vote is held as pending (unverified) and does not affect rank. */
+  pending: boolean;
   movedFrom: string | null;
   movedFromName: string | null;
   weight: number;
@@ -112,7 +116,10 @@ async function runVoteTransaction(
     if (entry.boardId !== input.boardId) throw new ORPCError("BAD_REQUEST", { message: "Entry does not belong to this board." });
     if (entry.status !== "active") throw new ORPCError("FORBIDDEN", { message: "This entry is not votable." });
 
-    const weight = voter.verifiedAt ? 1 : 0.25;
+    // Unverified votes are recorded but held as pending (weight 0): they never
+    // move the ranking until the voter verifies. See services/weights.ts.
+    let weight = PENDING_WEIGHT;
+    if (voter.verifiedAt) weight = voter.weight > PENDING_WEIGHT ? voter.weight : EMAIL_WEIGHT;
 
     // 4. The voter's existing vote on this board, if any.
     const [existing] = await tx
@@ -129,7 +136,7 @@ async function runVoteTransaction(
       if (existing.entryId === input.entryId) {
         // 4a. Toggle off.
         await tx.delete(schema.votes).where(eq(schema.votes.id, existing.id));
-        await adjustEntry(tx, existing.entryId, -1, -existing.weight);
+        await adjustEntry(tx, existing.entryId, existing.weight, -1);
         await logVoteEvent(tx, {
           boardId: input.boardId,
           entryId: existing.entryId,
@@ -148,8 +155,8 @@ async function runVoteTransaction(
           .limit(1);
         movedFrom = existing.entryId;
         movedFromName = oldEntry?.name ?? null;
-        await adjustEntry(tx, existing.entryId, -1, -existing.weight);
-        await adjustEntry(tx, input.entryId, 1, weight);
+        await adjustEntry(tx, existing.entryId, existing.weight, -1);
+        await adjustEntry(tx, input.entryId, weight, 1);
         await tx
           .update(schema.votes)
           .set({
@@ -184,7 +191,7 @@ async function runVoteTransaction(
           updatedAt: new Date(),
         })
         .where(eq(schema.votes.id, existing.id));
-      await adjustEntry(tx, input.entryId, 1, weight);
+      await adjustEntry(tx, input.entryId, weight, 1);
       await logVoteEvent(tx, { boardId: input.boardId, entryId: input.entryId, voterId: voter.id, kind: "cast", weight, meta });
     } else {
       // 4c. Insert. unique(board_id, voter_id) makes a concurrent duplicate fail
@@ -200,7 +207,7 @@ async function runVoteTransaction(
           deviceFp: meta.device,
           idempotencyKey: input.idempotencyKey,
         });
-        await adjustEntry(tx, input.entryId, 1, weight);
+        await adjustEntry(tx, input.entryId, weight, 1);
         await logVoteEvent(tx, { boardId: input.boardId, entryId: input.entryId, voterId: voter.id, kind: "cast", weight, meta });
       } catch (err) {
         if (!isUniqueViolation(err)) throw err;
@@ -212,8 +219,8 @@ async function runVoteTransaction(
         if (!raced) throw err;
         if (raced.entryId !== input.entryId) {
           movedFrom = raced.entryId;
-          await adjustEntry(tx, raced.entryId, -1, -raced.weight);
-          await adjustEntry(tx, input.entryId, 1, weight);
+          await adjustEntry(tx, raced.entryId, raced.weight, -1);
+          await adjustEntry(tx, input.entryId, weight, 1);
           await tx
             .update(schema.votes)
             .set({ entryId: input.entryId, weight, updatedAt: new Date() })
@@ -230,6 +237,7 @@ async function runVoteTransaction(
       .select({
         effective: sql<number>`coalesce(sum(${schema.entries.votesEffective}), 0)`,
         raw: sql<number>`coalesce(sum(${schema.entries.votesRaw}), 0)`,
+        pending: sql<number>`coalesce(sum(coalesce(${schema.entries.votesPending}, 0)), 0)`,
       })
       .from(schema.entries)
       .where(and(eq(schema.entries.boardId, input.boardId), eq(schema.entries.status, "active")));
@@ -238,6 +246,7 @@ async function runVoteTransaction(
       .set({
         totalVotesEffective: totals?.effective ?? 0,
         totalVotesRaw: Math.round(totals?.raw ?? 0),
+        totalVotesPending: Math.round(totals?.pending ?? 0),
         lastVoteAt: new Date(),
       })
       .where(eq(schema.boards.id, input.boardId));
@@ -246,6 +255,7 @@ async function runVoteTransaction(
     const target = action === "toggled_off" ? null : input.entryId;
     let votesEffective = 0;
     let votesRaw = 0;
+    let votesPending = 0;
     let newRank: number | null = null;
     if (target) {
       const [fresh] = await tx
@@ -255,6 +265,7 @@ async function runVoteTransaction(
         .limit(1);
       votesEffective = fresh?.votesEffective ?? 0;
       votesRaw = fresh?.votesRaw ?? 0;
+      votesPending = fresh?.votesPending ?? 0;
       newRank = await rankOf(tx, input.boardId, fresh!);
     }
 
@@ -264,6 +275,8 @@ async function runVoteTransaction(
       newRank,
       votesEffective,
       votesRaw,
+      votesPending,
+      pending: target !== null && isPendingWeight(weight),
       movedFrom,
       movedFromName,
       weight,
@@ -295,13 +308,23 @@ async function runVoteTransaction(
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-async function adjustEntry(tx: Tx, entryId: string, rawDelta: number, effectiveDelta: number) {
+/**
+ * Adds (`direction` 1) or removes (-1) one vote of the given weight from an
+ * entry's counters. A pending vote only ever touches `votes_pending`; a
+ * verified one touches `votes_raw` and `votes_effective`, which decide rank.
+ */
+async function adjustEntry(tx: Tx, entryId: string, weight: number, direction: 1 | -1) {
+  const pending = isPendingWeight(weight);
   await tx
     .update(schema.entries)
-    .set({
-      votesRaw: sql`max(0, ${schema.entries.votesRaw} + ${rawDelta})`,
-      votesEffective: sql`max(0, ${schema.entries.votesEffective} + ${effectiveDelta})`,
-    })
+    .set(
+      pending
+        ? { votesPending: sql`max(0, coalesce(${schema.entries.votesPending}, 0) + ${direction})` }
+        : {
+            votesRaw: sql`max(0, ${schema.entries.votesRaw} + ${direction})`,
+            votesEffective: sql`max(0, ${schema.entries.votesEffective} + ${direction * weight})`,
+          },
+    )
     .where(eq(schema.entries.id, entryId));
 }
 
@@ -364,7 +387,8 @@ export async function reconcileBoard(boardId: string) {
     .select({
       entryId: schema.votes.entryId,
       effective: sql<number>`sum(${schema.votes.weight})`,
-      raw: sql<number>`count(*)`,
+      raw: sql<number>`sum(case when ${schema.votes.weight} > ${PENDING_WEIGHT} then 1 else 0 end)`,
+      pending: sql<number>`sum(case when ${schema.votes.weight} <= ${PENDING_WEIGHT} then 1 else 0 end)`,
     })
     .from(schema.votes)
     .where(and(eq(schema.votes.boardId, boardId), eq(schema.votes.status, "counted")))
@@ -381,11 +405,16 @@ export async function reconcileBoard(boardId: string) {
     const truth = byEntry.get(entry.id);
     const effective = Number(truth?.effective ?? 0);
     const raw = Number(truth?.raw ?? 0);
-    if (Math.abs(entry.votesEffective - effective) > 1e-9 || entry.votesRaw !== raw) {
+    const pending = Number(truth?.pending ?? 0);
+    if (
+      Math.abs(entry.votesEffective - effective) > 1e-9 ||
+      entry.votesRaw !== raw ||
+      entry.votesPending !== pending
+    ) {
       drift++;
       await db
         .update(schema.entries)
-        .set({ votesEffective: effective, votesRaw: raw })
+        .set({ votesEffective: effective, votesRaw: raw, votesPending: pending })
         .where(eq(schema.entries.id, entry.id));
     }
   }
@@ -395,9 +424,13 @@ export async function reconcileBoard(boardId: string) {
     0,
   );
   const totalRaw = boardEntries.reduce((sum, e) => sum + Number(byEntry.get(e.id)?.raw ?? 0), 0);
+  const totalPending = boardEntries.reduce(
+    (sum, e) => sum + Number(byEntry.get(e.id)?.pending ?? 0),
+    0,
+  );
   await db
     .update(schema.boards)
-    .set({ totalVotesEffective: totalEffective, totalVotesRaw: totalRaw })
+    .set({ totalVotesEffective: totalEffective, totalVotesRaw: totalRaw, totalVotesPending: totalPending })
     .where(eq(schema.boards.id, boardId));
 
   if (drift > 0) {
@@ -408,5 +441,5 @@ export async function reconcileBoard(boardId: string) {
       metadata: { entriesCorrected: drift },
     });
   }
-  return { entriesCorrected: drift, totalEffective, totalRaw };
+  return { entriesCorrected: drift, totalEffective, totalRaw, totalPending };
 }

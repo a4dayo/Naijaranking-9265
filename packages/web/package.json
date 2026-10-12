@@ -9,6 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "dev": "vite",
     "start": "bun src/__server.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "preview": "bun run build && vite preview",
     "db:generate": "bun --env-file=../../.env drizzle-kit generate",

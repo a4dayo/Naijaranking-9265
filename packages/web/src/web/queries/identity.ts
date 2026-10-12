@@ -10,7 +10,7 @@ export function useRequestCode() {
   return useMutation(orpc.identity.requestCode.mutationOptions());
 }
 
-/** On success the voter is verified and every 0.25 vote they cast becomes 1.0. */
+/** On success the voter is verified and every pending vote they cast starts counting. */
 export function useVerifyCode() {
   const queryClient = useQueryClient();
   return useMutation({

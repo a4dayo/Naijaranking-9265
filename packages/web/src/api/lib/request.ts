@@ -1,23 +1,43 @@
 /** Request-shaped helpers: client IP, ASN hints, cookies, device fingerprint. */
 
+/**
+ * The caller's IP, read only from what our own edge sets — never from a value
+ * the client can choose. Every rate limit and fraud signal keys off this.
+ *
+ *   CLIENT_IP_HEADER   name of a header the edge overwrites on every request
+ *                      (e.g. `cf-connecting-ip` behind Cloudflare). When set,
+ *                      it is the only source.
+ *   TRUSTED_PROXY_HOPS how many proxies sit in front of the app (default 1).
+ *                      Each proxy appends the address it saw to
+ *                      X-Forwarded-For, so the client address is that many
+ *                      entries from the RIGHT. Anything further left was
+ *                      written by the client and is ignored.
+ */
 export function clientIp(headers: Headers): string {
+  const configured = process.env.CLIENT_IP_HEADER?.trim().toLowerCase();
+  if (configured) return headers.get(configured)?.trim() || "0.0.0.0";
+
   const forwarded = headers.get("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0]!.trim();
-  return (
-    headers.get("cf-connecting-ip") ??
-    headers.get("x-real-ip") ??
-    headers.get("fly-client-ip") ??
-    "0.0.0.0"
-  );
+  if (forwarded) {
+    const hops = Math.max(1, Number(process.env.TRUSTED_PROXY_HOPS ?? 1) || 1);
+    const chain = forwarded
+      .split(",")
+      .map((part) => part.trim())
+      .filter(Boolean);
+    return chain[Math.max(0, chain.length - hops)] ?? "0.0.0.0";
+  }
+  return headers.get("x-real-ip")?.trim() || "0.0.0.0";
 }
 
 /**
- * ASN of the caller. Real deployments read this from the edge (Cloudflare sends
- * it); absent that we fall back to a coarse hint so the integrity scanner can
- * still cluster datacentre traffic during development.
+ * ASN of the caller. Only read when the edge is configured to stamp it
+ * (`ASN_HEADER`, e.g. a Cloudflare transform rule writing `cf-asn`); a client
+ * can send any header it likes, so an unconfigured header is never trusted.
+ * Otherwise we fall back to a coarse /16 hint for clustering.
  */
 export function clientAsn(headers: Headers): string {
-  const asn = headers.get("cf-asn") ?? headers.get("x-asn");
+  const asnHeader = process.env.ASN_HEADER?.trim().toLowerCase();
+  const asn = asnHeader ? headers.get(asnHeader) : null;
   if (asn) return asn;
   const ip = clientIp(headers);
   return isPrivateIp(ip) ? "private" : `unknown:${ip.split(".").slice(0, 2).join(".")}`;

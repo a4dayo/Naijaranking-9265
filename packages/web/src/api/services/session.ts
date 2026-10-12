@@ -2,6 +2,7 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import { db } from "../database";
 import * as schema from "../database/schema";
 import { hashSessionPayload, newSessionToken, verifyToken } from "../lib/crypto";
+import { PENDING_WEIGHT } from "./weights";
 import { buildCookie, clientAsn, clientIp, deviceFingerprint, readCookie } from "../lib/request";
 
 export const VOTER_COOKIE = "nr_voter";
@@ -101,8 +102,8 @@ export async function currentVoter(headers: Headers) {
 
 /**
  * Returns the voter behind a request, creating an anonymous one on first vote.
- * Anonymous voters count at weight 0.25 — we never block the first vote behind a
- * login wall, because that kills the funnel.
+ * We never block the first vote behind a login wall, but an anonymous voter's
+ * votes are held as pending (weight 0) and do not affect rank until they verify.
  */
 export async function ensureVoter(headers: Headers): Promise<{
   voter: typeof schema.voters.$inferSelect;
@@ -117,7 +118,7 @@ export async function ensureVoter(headers: Headers): Promise<{
       deviceFp: deviceFingerprint(headers),
       firstSeenIp: clientIp(headers),
       firstSeenAsn: clientAsn(headers),
-      weight: 0.25,
+      weight: PENDING_WEIGHT,
     })
     .returning();
   const issued = await createVoterSession(voter!.id, headers);

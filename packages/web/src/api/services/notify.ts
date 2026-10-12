@@ -19,6 +19,12 @@ const FROM = process.env.OTP_FROM_EMAIL ?? "NaijaRank <onboarding@resend.dev>";
 export async function deliverEmailOtp(to: string, code: string): Promise<DeliveryResult> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
+    // Production must never hand the code back to the browser — that would make
+    // verification meaningless. Fail closed instead.
+    if (process.env.NODE_ENV === "production") {
+      console.error("[otp] RESEND_API_KEY is not set; refusing to issue codes in production");
+      return { delivered: false, provider: "none", costKobo: 0, error: "not configured" };
+    }
     // No provider wired: the code is returned to the caller and logged, clearly
     // labelled as dev mode. Never enable this path in production.
     console.log(`[otp] dev mode — code for ${to}: ${code}`);

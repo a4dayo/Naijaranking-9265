@@ -65,7 +65,7 @@ export function Header() {
               <span
                 className={`h-1.5 w-1.5 rounded-full ${verified ? "bg-primary" : "bg-muted-foreground"}`}
               />
-              {verified ? "Verified · full 1.0" : "Unverified · 0.25"}
+              {verified ? "Verified · votes count" : "Unverified · votes pending"}
             </span>
           ) : null}
           <button

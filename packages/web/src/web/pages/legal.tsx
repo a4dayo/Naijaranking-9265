@@ -56,7 +56,8 @@ function DataControls() {
       {data?.voter ? (
         <p className="mt-1 text-[13px] text-muted-foreground">
           You are {data.voter.verified ? "verified" : "unverified"} here
-          {data.voter.email ? ` as ${data.voter.email}` : ""}, vote weight {data.voter.weight}.
+          {data.voter.email ? ` as ${data.voter.email}` : ""}
+          {data.voter.verified ? " — your votes count." : " — your votes are pending until you verify."}
         </p>
       ) : (
         <p className="mt-1 text-[13px] text-muted-foreground">
@@ -80,7 +81,7 @@ function DataControls() {
           size="sm"
           disabled={!data?.voter || erase.isPending}
           onClick={async () => {
-            if (!window.confirm("Erase your email, phone and device trail? Votes already counted stay counted, but will no longer be linked to you.")) return;
+            if (!window.confirm("Erase your email, phone and device trail? Votes already counted stay counted, but will no longer be linked to you. We keep only a one-way hash so the same email cannot vote twice.")) return;
             try {
               await erase.mutateAsync();
               toast("Your personal data has been erased.", "success");
@@ -125,7 +126,8 @@ export default function LegalPage() {
             <Section title="Voting rules">
               <p>
                 One vote per person per board. Voting again on the same board moves your vote; it
-                never adds a second one. Verified votes carry weight 1.0, unverified 0.25.
+                never adds a second one. Only verified votes count toward the ranking; unverified votes are
+                shown as pending.
               </p>
               <p>
                 Automating votes, buying votes, or using multiple identities to vote is a breach of
@@ -168,11 +170,11 @@ export default function LegalPage() {
               The full methodology, in plain language.
             </p>
 
-            <Section title="Your first vote counts immediately">
+            <Section title="Your first vote is saved immediately">
               <p>
-                Tap Vote and it lands — no account, no login wall. An unverified vote carries weight
-                0.25. We then ask you once to verify with your email; verifying upgrades every vote
-                you have already cast, on every board, to full weight 1.0.
+                Tap Vote and it is saved — no account, no login wall. Until you verify, it shows as
+                pending and does not move the ranking. We then ask you once to verify with your
+                email; verifying makes every vote you have already cast, on every board, count.
               </p>
             </Section>
             <Section title="One vote per person per board">
@@ -230,7 +232,7 @@ export default function LegalPage() {
             <Section title="What we collect, and why">
               <p>
                 <strong className="text-foreground">Email address</strong> — only if you verify.
-                Used solely to keep one vote per person and to weight your vote at 1.0. Never shown
+                Used solely to keep one vote per person and to make your vote count. Never shown
                 publicly, never sold, never used for marketing.
               </p>
               <p>
@@ -240,6 +242,12 @@ export default function LegalPage() {
               <p>
                 <strong className="text-foreground">Device fingerprint</strong> — a one-way hash of
                 your browser's user-agent and language, used for rate limiting and fraud detection.
+              </p>
+              <p>
+                <strong className="text-foreground">Identity hash</strong> — a keyed one-way hash of
+                your verified email. It cannot be reversed to reveal the address. If you erase your
+                data we keep only this hash, so the same email cannot be used to vote a second time;
+                verifying it again restores your existing votes instead of adding new ones.
               </p>
               <p>
                 <strong className="text-foreground">Session token</strong> — an HMAC-signed token in
@@ -253,7 +261,9 @@ export default function LegalPage() {
                 Legitimate interest
                 </strong>{" "}
                 for IP, ASN and device data — running a vote-based ranking is impossible without
-                fraud controls, and we hold this data for the minimum period useful for that.
+                fraud controls, and we hold this data for the minimum period useful for that. The
+                identity hash kept after erasure rests on the same interest: without it, erasing and
+                re-verifying would let one person vote twice.
               </p>
             </Section>
             <Section title="How long we keep it">
