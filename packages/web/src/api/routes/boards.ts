@@ -243,7 +243,7 @@ export const boards = {
     .handler(async ({ input, context }) => {
       const voter = await currentVoter(context.headers);
       const subject = voter?.id ?? deviceFingerprint(context.headers);
-      if (!limited("nominationByVoter", subject).ok)
+      if (!(await limited("nominationByVoter", subject)).ok)
         throw new ORPCError("TOO_MANY_REQUESTS", {
           message: "You have sent a few suggestions already. Try again later.",
         });
@@ -305,7 +305,7 @@ export const boards = {
     .handler(async ({ input, context }) => {
       const voter = await currentVoter(context.headers);
       const subject = voter?.id ?? deviceFingerprint(context.headers);
-      if (!limited("reportByVoter", subject).ok)
+      if (!(await limited("reportByVoter", subject)).ok)
         throw new ORPCError("TOO_MANY_REQUESTS", { message: "Too many reports. Try again later." });
 
       await db.insert(schema.reports).values({
@@ -386,7 +386,7 @@ export const boards = {
     )
     .handler(async ({ input, context }) => {
       const device = deviceFingerprint(context.headers);
-      if (!limited("eventsByDevice", device).ok) return { recorded: false };
+      if (!(await limited("eventsByDevice", device)).ok) return { recorded: false };
       const voter = await currentVoter(context.headers);
       await track(input.name, {
         boardId: input.boardId ?? null,

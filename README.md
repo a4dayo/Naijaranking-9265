@@ -1,4 +1,12 @@
-# App template
+# NaijaRank
+
+Crowdsourced leaderboards for Nigeria. Hosted on Cloudflare Workers with a Turso (libSQL) database; every push to `main` deploys through GitHub Actions.
+
+- **Moving from Runable / first deploy:** [docs/moving-to-cloudflare.md](docs/moving-to-cloudflare.md)
+- **Run locally:** `bun install`, then `bun run dev` (Vite + Bun API). `bun run test` runs the test suite.
+- **Product and design notes:** [design.md](design.md)
+
+## Original template notes
 
 Runable copies this Bun and Turborepo project into each new sandbox.
 

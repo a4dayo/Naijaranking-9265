@@ -6,8 +6,8 @@
  * live in memory here — same behaviour (per IP, per device, per voter), one less
  * network hop, and never a source of truth for vote counts.
  *
- * If this is ever scaled to multiple instances, swap `hits` for a Redis sorted set;
- * the `check()` signature is the boundary that would stay the same.
+ * On Cloudflare Workers the same counters run inside a Durable Object instead
+ * (src/worker.ts), via `setLimitBackend`.
  */
 
 interface Window {
@@ -74,7 +74,36 @@ export const LIMITS = {
   eventsByDevice: { limit: 300, windowMs: 60_000 },
 } as const;
 
-export function limited(name: keyof typeof LIMITS, subject: string) {
+/**
+ * Where counters live. In one long-lived process (Bun, tests) memory is
+ * enough. On Cloudflare Workers every isolate has its own memory, so the
+ * Worker swaps in a Durable Object backend (see src/worker.ts) that all
+ * isolates share.
+ */
+export interface LimitBackend {
+  hit(key: string, limit: number, windowMs: number): Promise<LimitResult>;
+}
+
+const memoryBackend: LimitBackend = {
+  hit: async (key, limit, windowMs) => check(key, limit, windowMs),
+};
+let backend: LimitBackend = memoryBackend;
+
+export function setLimitBackend(next: LimitBackend) {
+  backend = next;
+}
+
+/**
+ * Records a hit against a named limit. If the shared backend is unreachable
+ * the request is let through and the failure logged: a rate-limit outage must
+ * not take voting down with it.
+ */
+export async function limited(name: keyof typeof LIMITS, subject: string): Promise<LimitResult> {
   const { limit, windowMs } = LIMITS[name];
-  return check(`${name}:${subject}`, limit, windowMs);
+  try {
+    return await backend.hit(`${name}:${subject}`, limit, windowMs);
+  } catch (err) {
+    console.error(`[ratelimit] backend failed for ${name}; allowing request`, err);
+    return { ok: true, remaining: limit, retryAfterMs: 0 };
+  }
 }

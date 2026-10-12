@@ -1,5 +1,6 @@
 import { db } from "../database";
 import * as schema from "../database/schema";
+import { inBackground } from "../lib/background";
 
 type Actor = { id?: string | null; kind: "system" | "voter" | "admin" };
 
@@ -42,6 +43,14 @@ export async function track(
   } = {},
 ) {
   const { boardId, entryId, voterId, sessionKey, referrer, ...rest } = props;
+  return inBackground(writeEvent(name, { boardId, entryId, voterId, sessionKey, referrer }, rest));
+}
+
+async function writeEvent(
+  name: string,
+  { boardId, entryId, voterId, sessionKey, referrer }: Record<string, string | null | undefined>,
+  rest: Record<string, unknown>,
+) {
   try {
     await db.insert(schema.events).values({
       name,

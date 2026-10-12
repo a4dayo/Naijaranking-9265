@@ -7,6 +7,7 @@ import * as schema from "../database/schema";
 import { hashPassword, verifyPassword } from "../lib/crypto";
 import { errorChain, isUniqueViolation } from "../lib/errors";
 import { limited } from "../lib/ratelimit";
+import { EXPORT_TABLES } from "../lib/export-tables";
 import { clientIp } from "../lib/request";
 import { ALLOWED_CATEGORIES, isAllowedCategory, normaliseName, slugify } from "../lib/text";
 import { audit } from "../services/audit";
@@ -108,7 +109,7 @@ export const admin = {
     .input(z.object({ email: z.string().email(), password: z.string().min(1) }))
     .handler(async ({ input, context }) => {
       const ip = clientIp(context.headers);
-      if (!limited("adminLoginByIp", ip).ok)
+      if (!(await limited("adminLoginByIp", ip)).ok)
         throw new ORPCError("TOO_MANY_REQUESTS", { message: "Too many attempts. Wait 15 minutes." });
 
       const [row] = await db
@@ -945,6 +946,51 @@ export const admin = {
         .orderBy(desc(schema.auditLog.id))
         .limit(input?.limit ?? 100);
       return rows;
+    }),
+
+  /**
+   * Data export for moving hosts (scripts/copy-data.ts). Owner only, and the
+   * owner's password is checked again on every page, so a stolen admin session
+   * alone cannot pull the data out. Each table's export is audited.
+   */
+  exportTable: operator
+    .input(
+      z.object({
+        table: z.enum(EXPORT_TABLES),
+        password: z.string().min(1),
+        offset: z.number().int().min(0).default(0),
+        limit: z.number().int().min(1).max(1000).default(500),
+      }),
+    )
+    .handler(async ({ input, context }) => {
+      if (context.admin.role !== "owner")
+        throw new ORPCError("FORBIDDEN", { message: "Only an owner can export data." });
+      const [owner] = await db
+        .select({ passwordHash: schema.admins.passwordHash })
+        .from(schema.admins)
+        .where(eq(schema.admins.id, context.admin.id))
+        .limit(1);
+      if (!owner || !verifyPassword(input.password, owner.passwordHash))
+        throw new ORPCError("UNAUTHORIZED", { message: "Password is not right." });
+
+      // `table` is one of EXPORT_TABLES (validated above), never free text.
+      const result = await db.$client.execute({
+        sql: `select * from "${input.table}" order by rowid limit ? offset ?`,
+        args: [input.limit, input.offset],
+      });
+      if (input.offset === 0) {
+        await audit({
+          actor: { id: context.admin.id, kind: "admin" },
+          action: "data.exported",
+          targetType: "table",
+          targetId: input.table,
+        });
+      }
+      return {
+        columns: result.columns,
+        rows: result.rows.map((row) => result.columns.map((_, index) => row[index] ?? null)),
+        done: result.rows.length < input.limit,
+      };
     }),
 
   /** Manual triggers for the background jobs, so an operator is never stuck waiting. */

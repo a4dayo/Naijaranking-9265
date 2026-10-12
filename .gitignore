@@ -72,3 +72,7 @@ scripts/
 !packages/mobile/scripts/
 packages/mobile/scripts/*
 !packages/mobile/scripts/generate-ios-certs.py
+
+# Wrangler local secrets and state
+.dev.vars
+.wrangler
