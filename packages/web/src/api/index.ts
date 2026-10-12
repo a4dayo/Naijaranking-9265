@@ -115,7 +115,12 @@ app.use("/api/rpc/*", async (c, next) => {
 });
 app.route("/", api);
 
-// Reconciliation, integrity scanning and rank snapshots run in-process.
-startJobs();
+// In a long-lived process (Bun, local dev) the jobs run on intervals. On
+// Cloudflare Workers timers cannot outlive a request, so Cron Triggers call
+// them instead — see src/worker.ts.
+const onWorkers =
+  (globalThis as { navigator?: { userAgent?: string } }).navigator?.userAgent ===
+  "Cloudflare-Workers";
+if (!onWorkers) startJobs();
 
 export default app;

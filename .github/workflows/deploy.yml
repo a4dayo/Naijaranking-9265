@@ -1,0 +1,76 @@
+# Deploys NaijaRank to Cloudflare Workers on every push to main.
+# One-time setup (repo Settings → Secrets and variables → Actions → Secrets):
+#   CLOUDFLARE_API_TOKEN   token with the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID  from the Cloudflare dashboard sidebar
+#   DATABASE_URL           libsql://<your-db>.turso.io
+#   DATABASE_AUTH_TOKEN    Turso token for that database
+#   SESSION_SECRET         long random string; never change it once live
+#   RESEND_API_KEY         for sending OTP emails
+name: Deploy to Cloudflare
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+      - name: Tests
+        run: bun test
+      - name: Type-check API and Worker
+        run: bunx tsc -p tsconfig.worker.json --noEmit
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: packages/web
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_AUTH_TOKEN: ${{ secrets.DATABASE_AUTH_TOKEN }}
+      SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: bun install --frozen-lockfile
+
+      # Additive schema changes are applied; anything that would delete or
+      # rebuild data stops the deploy (see scripts/db-push.ts).
+      - name: Apply schema changes (guarded)
+        run: bun scripts/db-push.ts
+
+      - name: Build the web app
+        run: bunx vite build
+
+      - name: Deploy Worker
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: packages/web
+          packageManager: bun
+          wranglerVersion: "4.149.0"
+          secrets: |
+            DATABASE_URL
+            DATABASE_AUTH_TOKEN
+            SESSION_SECRET
+            RESEND_API_KEY

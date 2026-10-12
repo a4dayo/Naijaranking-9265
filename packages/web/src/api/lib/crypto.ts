@@ -1,7 +1,16 @@
 import { createHash, createHmac, randomBytes, randomInt, scryptSync, timingSafeEqual } from "node:crypto";
 
-const SECRET =
-  process.env.SESSION_SECRET ?? process.env.BETTER_AUTH_SECRET ?? "naijarank-dev-secret-change-me";
+/**
+ * Read per call, not at import: on Cloudflare Workers secrets arrive with the
+ * request. Production refuses to fall back to the public development secret,
+ * because anything signed or hashed with it would be forgeable.
+ */
+function secret() {
+  const value = process.env.SESSION_SECRET ?? process.env.BETTER_AUTH_SECRET;
+  if (value) return value;
+  if (process.env.NODE_ENV === "production") throw new Error("SESSION_SECRET is not set");
+  return "naijarank-dev-secret-change-me";
+}
 
 /** Constant-time string compare that never throws on length mismatch. */
 export function safeEqual(a: string, b: string) {
@@ -16,7 +25,7 @@ export function sha256(value: string) {
 }
 
 function hmac(value: string) {
-  return createHmac("sha256", SECRET).update(value).digest("base64url");
+  return createHmac("sha256", secret()).update(value).digest("base64url");
 }
 
 /**
@@ -52,7 +61,7 @@ export function newOtpCode() {
 }
 
 export function hashOtp(destination: string, code: string) {
-  return createHmac("sha256", SECRET).update(`${destination}:${code}`).digest("hex");
+  return createHmac("sha256", secret()).update(`${destination}:${code}`).digest("hex");
 }
 
 export function hashPassword(password: string) {
@@ -73,10 +82,10 @@ export function verifyPassword(password: string, stored: string) {
  * never be used to vote twice. Depends on SESSION_SECRET staying stable.
  */
 export function identityHash(destination: string) {
-  return createHmac("sha256", SECRET).update(`identity:${destination}`).digest("hex");
+  return createHmac("sha256", secret()).update(`identity:${destination}`).digest("hex");
 }
 
 /** Stable pseudonymous hash for IPs kept past the 90-day raw-retention window. */
 export function pseudonymiseIp(ip: string) {
-  return createHmac("sha256", SECRET).update(`ip:${ip}`).digest("hex").slice(0, 32);
+  return createHmac("sha256", secret()).update(`ip:${ip}`).digest("hex").slice(0, 32);
 }

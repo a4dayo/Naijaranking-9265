@@ -50,11 +50,11 @@ export async function castVote(input: VoteInput, headers: Headers): Promise<Vote
   const device = deviceFingerprint(headers);
   const asn = clientAsn(headers);
 
-  if (!limited("voteByIp", ip).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Too many votes from this network. Try again in a minute." });
-  if (!limited("voteByDevice", device).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Slow down a moment." });
+  if (!(await limited("voteByIp", ip)).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Too many votes from this network. Try again in a minute." });
+  if (!(await limited("voteByDevice", device)).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Slow down a moment." });
 
   const { voter, issued } = await ensureVoter(headers);
-  if (!limited("voteByVoter", voter.id).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Slow down a moment." });
+  if (!(await limited("voteByVoter", voter.id)).ok) throw new ORPCError("TOO_MANY_REQUESTS", { message: "Slow down a moment." });
 
   const result = await withLock(`vote:${input.boardId}:${voter.id}`, () =>
     withBusyRetry(() => runVoteTransaction(input, voter, { ip, asn, device })),

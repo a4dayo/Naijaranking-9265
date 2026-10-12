@@ -37,9 +37,9 @@ export async function requestOtp(raw: string, headers: Headers) {
   const { channel, destination } = normaliseDestination(raw);
   const ip = clientIp(headers);
 
-  if (!limited("otpByIp", ip).ok)
+  if (!(await limited("otpByIp", ip)).ok)
     throw new OtpError("Too many codes requested from this network. Try again later.", "RATE_LIMIT");
-  if (!limited("otpByDestination", destination).ok)
+  if (!(await limited("otpByDestination", destination)).ok)
     throw new OtpError("You have requested 3 codes in the last hour. Try again later.", "RATE_LIMIT");
 
   if (channel === "sms") {
@@ -80,7 +80,7 @@ export async function requestOtp(raw: string, headers: Headers) {
 export async function verifyOtp(raw: string, code: string, headers: Headers) {
   const { destination } = normaliseDestination(raw);
   const ip = clientIp(headers);
-  if (!limited("otpVerifyByIp", ip).ok)
+  if (!(await limited("otpVerifyByIp", ip)).ok)
     throw new OtpError("Too many verification attempts. Try again later.", "RATE_LIMIT");
 
   const [record] = await db

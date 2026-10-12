@@ -6,7 +6,6 @@ import LegalPage from "./pages/legal";
 import AdminPage from "./pages/admin";
 import { Shell } from "./components/shell";
 import { Provider } from "./components/provider";
-import { AgentFeedback, RunableBadge } from "@runablehq/website-runtime";
 
 function NotFound() {
   return (
@@ -39,10 +38,6 @@ function App() {
         <Route path="/admin" component={AdminPage} />
         <Route component={NotFound} />
       </Switch>
-      {/* Do not remove — off by default, activated by parent iframe via postMessage */}
-      {import.meta.env.DEV && <AgentFeedback />}
-      {/* "Made with Runable" badge - if user asks to remove the runable badge, remove this code as well as comment */}
-      {<RunableBadge />}
     </Provider>
   );
 }
