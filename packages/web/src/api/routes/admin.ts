@@ -216,7 +216,71 @@ export const admin = {
       .groupBy(bucket)
       .orderBy(bucket);
 
+    // Launch funnel: distinct devices reaching each step in the last 7 days.
+    const since7 = new Date(Date.now() - 7 * DAY);
+    // Visitors can vote from the homepage or a board, so both views are one entry step.
+    const VIEWS = ["home_viewed", "board_viewed"] as const;
+    const FUNNEL = [
+      "visited",
+      "vote_cast",
+      "otp_prompt_shown",
+      "otp_requested",
+      "otp_verified",
+    ] as const;
+    const funnelRows = await db
+      .select({
+        name: schema.events.name,
+        devices: sql<number>`count(distinct ${schema.events.sessionKey})`,
+      })
+      .from(schema.events)
+      .where(and(inArray(schema.events.name, FUNNEL.slice(1)), gte(schema.events.createdAt, since7)))
+      .groupBy(schema.events.name);
+    const [visited] = await db
+      .select({ devices: sql<number>`count(distinct ${schema.events.sessionKey})` })
+      .from(schema.events)
+      .where(and(inArray(schema.events.name, [...VIEWS]), gte(schema.events.createdAt, since7)));
+    const funnelMap = new Map(funnelRows.map((r) => [r.name, Number(r.devices)]));
+    funnelMap.set("visited", Number(visited?.devices ?? 0));
+
+    // Where visitors came from (page views only), by referring host.
+    const referrerRows = await db
+      .select({ referrer: schema.events.referrer, count: sql<number>`count(*)` })
+      .from(schema.events)
+      .where(
+        and(
+          inArray(schema.events.name, [...VIEWS]),
+          gte(schema.events.createdAt, since7),
+        ),
+      )
+      .groupBy(schema.events.referrer);
+    const sources = new Map<string, number>();
+    for (const row of referrerRows) {
+      let host = "Direct / app";
+      try {
+        if (row.referrer) host = new URL(row.referrer).hostname.replace(/^www\./, "");
+      } catch {
+        host = "Other";
+      }
+      sources.set(host, (sources.get(host) ?? 0) + Number(row.count));
+    }
+
+    const suggestions = await db
+      .select({ props: schema.events.props, createdAt: schema.events.createdAt })
+      .from(schema.events)
+      .where(eq(schema.events.name, "board_suggested"))
+      .orderBy(desc(schema.events.createdAt))
+      .limit(30);
+
     return {
+      funnel7d: FUNNEL.map((step) => ({ step, devices: funnelMap.get(step) ?? 0 })),
+      sources7d: [...sources.entries()]
+        .map(([source, views]) => ({ source, views }))
+        .sort((a, b) => b.views - a.views)
+        .slice(0, 6),
+      suggestions: suggestions.map((s) => ({
+        text: String((s.props as { text?: unknown } | null)?.text ?? ""),
+        at: s.createdAt,
+      })),
       boards: {
         total: Number(boardCounts?.total ?? 0),
         live: Number(boardCounts?.live ?? 0),

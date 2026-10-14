@@ -385,6 +385,13 @@ export const boards = {
       }),
     )
     .handler(async ({ input, context }) => {
+      // Board suggestions are free text shown to operators — keep them short and plain.
+      if (input.name === "board_suggested") {
+        const text = input.props?.text;
+        if (typeof text !== "string" || text.trim().length < 4 || text.length > 120)
+          return { recorded: false };
+        input.props = { text: text.trim() };
+      }
       const device = deviceFingerprint(context.headers);
       if (!(await limited("eventsByDevice", device)).ok) return { recorded: false };
       const voter = await currentVoter(context.headers);
