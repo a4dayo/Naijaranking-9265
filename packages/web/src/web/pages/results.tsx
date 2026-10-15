@@ -16,9 +16,9 @@ export default function ResultsPage() {
   const { data, isLoading, error } = useResults(slug);
 
   useEffect(() => {
-    if (data?.board.title) document.title = `${data.board.title} — final results · NaijaRank`;
+    if (data?.board.title) document.title = `${data.board.title} — final results · WhodeyTop`;
     return () => {
-      document.title = "NaijaRank — Nigeria's rankings, voted live";
+      document.title = "WhodeyTop — Nigeria's rankings, voted live";
     };
   }, [data?.board.title]);
 

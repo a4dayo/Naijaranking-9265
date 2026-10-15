@@ -12,7 +12,7 @@ export function Logo({ className = "" }: { className?: string }) {
         <span className="h-[10px] w-[3px] rounded-sm bg-accent" />
       </span>
       <span className="font-display text-[19px] leading-none font-extrabold tracking-tight">
-        Naija<span className="text-primary">Rank</span>
+        Whodey<span className="text-primary">Top</span>
       </span>
     </span>
   );

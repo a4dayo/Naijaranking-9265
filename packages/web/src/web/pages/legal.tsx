@@ -116,9 +116,9 @@ export default function LegalPage() {
             <h1 className="mt-5 font-display text-3xl font-extrabold">Terms of use</h1>
             <p className="mt-1.5 text-[13px] text-muted-foreground">Last updated {UPDATED}</p>
 
-            <Section title="What NaijaRank is">
+            <Section title="What WhodeyTop is">
               <p>
-                NaijaRank publishes crowdsourced rankings. Every position on every board is the sum
+                WhodeyTop publishes crowdsourced rankings. Every position on every board is the sum
                 of votes cast by the public — it is not our opinion, an endorsement, or a statement
                 of fact about anyone listed.
               </p>
@@ -225,7 +225,7 @@ export default function LegalPage() {
 
             <Section title="Who we are">
               <p>
-                NaijaRank is the data controller for the personal data described here. Reach us at
+                WhodeyTop is the data controller for the personal data described here. Reach us at
                 privacy@naijarank.ng.
               </p>
             </Section>
@@ -293,7 +293,7 @@ export default function LegalPage() {
             </Section>
             <Section title="Children">
               <p>
-                NaijaRank is not directed at children under 13. If you believe a child has verified
+                WhodeyTop is not directed at children under 13. If you believe a child has verified
                 an account, write to us and we will erase it.
               </p>
             </Section>

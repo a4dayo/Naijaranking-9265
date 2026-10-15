@@ -303,6 +303,91 @@ function Overview() {
           </Card>
         </div>
       </div>
+
+      {data ? <LaunchPanels data={data} /> : null}
+    </div>
+  );
+}
+
+const FUNNEL_LABELS: Record<string, string> = {
+  visited: "Visited (homepage or a board)",
+  vote_cast: "Tapped Vote",
+  otp_prompt_shown: "Saw the confirm prompt",
+  otp_requested: "Asked for a code",
+  otp_verified: "Confirmed (vote counts)",
+};
+
+function LaunchPanels({
+  data,
+}: {
+  data: NonNullable<ReturnType<typeof useDashboard>["data"]>;
+}) {
+  const top = Math.max(1, ...data.funnel7d.map((s) => s.devices));
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      <Card title="Voting funnel · last 7 days (devices)">
+        <ul className="space-y-2.5">
+          {data.funnel7d.map((step, index) => {
+            const previous = index > 0 ? data.funnel7d[index - 1]!.devices : 0;
+            const kept = previous > 0 ? Math.round((step.devices / previous) * 100) : null;
+            return (
+              <li key={step.step}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">{FUNNEL_LABELS[step.step] ?? step.step}</span>
+                  <span className="tabular font-bold">
+                    {fmtVotes(step.devices)}
+                    {kept !== null ? (
+                      <span className="ml-1.5 text-xs font-medium text-muted-foreground">{kept}%</span>
+                    ) : null}
+                  </span>
+                </div>
+                <div className="mt-1 h-1.5 rounded-full bg-secondary">
+                  <div
+                    className="h-full rounded-full bg-primary/80"
+                    style={{ width: `${(step.devices / top) * 100}%` }}
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-3 text-xs text-muted-foreground">
+          The percentage is how many made it from the step above. A big drop at “Asked for a code” or
+          “Confirmed” means the email code is losing voters.
+        </p>
+      </Card>
+
+      <Card title="Where visitors came from · 7 days">
+        {data.sources7d.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No page views yet.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {data.sources7d.map((row) => (
+              <li key={row.source} className="flex items-center justify-between gap-3">
+                <span className="truncate text-muted-foreground">{row.source}</span>
+                <span className="tabular font-bold">{fmtVotes(row.views)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card title="Board suggestions from visitors">
+        {data.suggestions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">None yet. They arrive from the homepage box.</p>
+        ) : (
+          <ul className="max-h-64 space-y-2 overflow-y-auto text-sm">
+            {data.suggestions.map((s, index) => (
+              <li key={index} className="flex items-start justify-between gap-3">
+                <span>{s.text}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {new Date(s.at).toLocaleDateString("en-NG", { day: "numeric", month: "short" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }

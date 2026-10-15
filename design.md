@@ -1,4 +1,4 @@
-# NaijaRank — Design
+# WhodeyTop — Design
 
 Crowdsourced leaderboard platform for Nigeria. Web only (Bun + Vite + React + Hono + Drizzle/Turso).
 Visual direction: **live scoreboard** — big rank numerals, movement arrows, ticker energy, zero editorial

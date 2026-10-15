@@ -1,4 +1,4 @@
-# NaijaRank
+# WhodeyTop
 
 Crowdsourced leaderboards for Nigeria. Hosted on Cloudflare Workers with a Turso (libSQL) database; every push to `main` deploys through GitHub Actions.
 

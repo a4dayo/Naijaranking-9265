@@ -45,7 +45,7 @@ api.get("/api/share/:slug", async (c) => {
 
   const entries = await rankedEntries(board.id);
   const leader = entries[0];
-  const title = `${board.title} — NaijaRank`;
+  const title = `${board.title} — WhodeyTop`;
   const description = leader
     ? `${leader.name} is No.1 with ${leader.votesEffective} votes, out of ${board.totalVotesRaw} verified so far. Think that's wrong? One tap changes it.`
     : (board.description ?? "Nobody has voted yet. Cast the first one and set the order.");
@@ -59,7 +59,7 @@ api.get("/api/share/:slug", async (c) => {
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}" />
 <meta property="og:type" content="website" />
-<meta property="og:site_name" content="NaijaRank" />
+<meta property="og:site_name" content="WhodeyTop" />
 <meta property="og:title" content="${escapeHtml(title)}" />
 <meta property="og:description" content="${escapeHtml(description)}" />
 <meta property="og:image" content="${escapeHtml(image)}" />
