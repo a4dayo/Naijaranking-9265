@@ -14,7 +14,7 @@ export interface DeliveryResult {
   error?: string;
 }
 
-const FROM = process.env.OTP_FROM_EMAIL ?? "NaijaRank <onboarding@resend.dev>";
+const FROM = process.env.OTP_FROM_EMAIL ?? "WhodeyTop <onboarding@resend.dev>";
 
 export async function deliverEmailOtp(to: string, code: string): Promise<DeliveryResult> {
   const key = process.env.RESEND_API_KEY;
@@ -38,8 +38,8 @@ export async function deliverEmailOtp(to: string, code: string): Promise<Deliver
       body: JSON.stringify({
         from: FROM,
         to: [to],
-        subject: `${code} is your NaijaRank code`,
-        text: `Your NaijaRank verification code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, ignore this email.`,
+        subject: `${code} is your WhodeyTop code`,
+        text: `Your WhodeyTop verification code is ${code}. It expires in 10 minutes.\n\nIf you did not request this, ignore this email.`,
         html: otpHtml(code),
       }),
     });
@@ -59,7 +59,7 @@ function otpHtml(code: string) {
   return `<!doctype html><html><body style="margin:0;background:#FBFAF6;font-family:system-ui,-apple-system,Segoe UI,sans-serif;padding:32px">
 <table role="presentation" width="100%" style="max-width:480px;margin:0 auto;background:#fff;border:1px solid #E6E3D9;border-radius:16px;padding:32px">
 <tr><td>
-<div style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0B5D2E;font-weight:700">NaijaRank</div>
+<div style="font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#0B5D2E;font-weight:700">WhodeyTop</div>
 <h1 style="font-size:22px;margin:16px 0 8px;color:#0B1410">Make your vote count</h1>
 <p style="margin:0 0 24px;color:#5C6B61;font-size:15px;line-height:1.5">Enter this code to verify your vote. Verified votes count at full weight.</p>
 <div style="font-size:38px;font-weight:800;letter-spacing:.18em;color:#0B1410;background:#F3F6F1;border-radius:12px;padding:18px;text-align:center">${code}</div>

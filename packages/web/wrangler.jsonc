@@ -24,7 +24,7 @@
     "CLIENT_IP_HEADER": "cf-connecting-ip",
     // Stamped by src/worker.ts from request.cf.asn; client values are replaced.
     "ASN_HEADER": "x-nr-edge-asn",
-    "OTP_FROM_EMAIL": "NaijaRank <onboarding@resend.dev>"
+    "OTP_FROM_EMAIL": "WhodeyTop <onboarding@resend.dev>"
   },
 
   // Background jobs. Keep in step with CRON_JOBS in src/worker.ts.

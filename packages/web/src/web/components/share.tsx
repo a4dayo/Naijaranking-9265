@@ -19,8 +19,8 @@ export function ShareRow({ slug, title, line, boardId }: Props) {
   const toast = useToast();
   const url = `${window.location.origin}/api/share/${slug}`;
   const text = line
-    ? `${line} in ${title} on NaijaRank. Disagree? Vote and move it.`
-    : `${title} on NaijaRank — cast your vote and move the board.`;
+    ? `${line} in ${title} on WhodeyTop. Disagree? Vote and move it.`
+    : `${title} on WhodeyTop — cast your vote and move the board.`;
 
   const record = (channel: string) => trackEvent("share_clicked", { boardId, channel });
 
